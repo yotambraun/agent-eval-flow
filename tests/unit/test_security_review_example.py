@@ -5,7 +5,8 @@ import pytest
 
 import agent_eval_flow as a
 from agent_eval_flow.objects.tool_trace import ToolRequest
-from examples.security_review.evaluators import grounded, hits, relative
+from examples.security_review.evaluators import (Fixture, evidence_text, file_covered, grounded, hits,
+    region_returned, relative)
 from examples.security_review.fetch import changed_lines
 from examples.security_review.run_study import UNSAFE_SHELL, tool_contract
 
@@ -54,33 +55,53 @@ def test_detection_window_is_bounded_to_the_fixed_file():
     assert not hits({"file": "/w/repo/pkg/files.py", "line": "40"}, truth, 10)
 
 
-def _call(tool, arguments, result="", completion="completed"):
+def _fixture(tmp_path):
+    source = ["import os", "", "def load(name):", "    return open(os.path.join(BASE, name)).read()", "}"]
+    target = tmp_path / "t" / "files" / "pkg" / "files.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("\n".join(source) + "\n")
+    return Fixture(tmp_path, "t")
+
+
+def test_grounding_needs_returned_source_text_from_any_tool(tmp_path):
+    fixture = _fixture(tmp_path)
+    finding = {"file": "/w/repo/pkg/files.py", "line": 4}
+    read = "     4\t    return open(os.path.join(BASE, name)).read()"
+    shell = "def load(name):\n    return open(os.path.join(BASE, name)).read()"
+    assert grounded(read, fixture, finding) and grounded(shell, fixture, finding)
+    assert not grounded("def load(name):", fixture, finding)
+    # A generic line borrows its nearest distinctive neighbour.
+    assert grounded(read, fixture, {"file": "pkg/files.py", "line": 5})
+    assert not grounded(read, fixture, {"file": "pkg/other.py", "line": 4})
+
+
+def test_only_completed_non_answer_calls_count_as_evidence():
     artifact = a.ArtifactRef(uri="/x", media_type="text/plain", sha256="0" * 64)
     ref = a.EvidenceRef(artifact=artifact)
-    return ToolRequest(call_id=tool + str(id(arguments)), execution_id="e", tool=tool, arguments=arguments,
-        evidence=(ref,), completion=completion, result=result if completion != "unknown" else None,
-        result_evidence=(ref,) if completion != "unknown" else ())
+    def call(tool, completion, result):
+        return ToolRequest(call_id=tool + completion, execution_id="e", tool=tool, arguments={}, evidence=(ref,),
+            completion=completion, result=result if completion != "unknown" else None,
+            result_evidence=(ref,) if completion != "unknown" else ())
+    trace = SimpleNamespace(calls=(call("Bash", "completed", [{"type": "text", "text": "seen"}]),
+        call("Bash", "error", "denied text"), call("Read", "unknown", None),
+        call("StructuredOutput", "completed", "answer text")))
+    text = evidence_text(trace)
+    assert "seen" in text and "denied" not in text and "answer" not in text
 
 
-def test_grounding_requires_a_completed_call_that_returned_the_line():
-    finding = {"file": "pkg/files.py", "line": 120}
-    read_head = _call("Read", {"file_path": "/w/repo/pkg/files.py", "limit": 100})
-    assert not grounded(SimpleNamespace(calls=(read_head,)), finding)
-    read_window = _call("Read", {"file_path": "/w/repo/pkg/files.py", "offset": 100, "limit": 50})
-    assert grounded(SimpleNamespace(calls=(read_window,)), finding)
-    unfinished = _call("Read", {"file_path": "/w/repo/pkg/files.py"}, completion="unknown")
-    assert not grounded(SimpleNamespace(calls=(unfinished,)), finding)
-    grep = _call("Grep", {"pattern": "open"}, result="repo/pkg/files.py:120:    return open(p)")
-    assert grounded(SimpleNamespace(calls=(grep,)), finding)
-    scoped = _call("Grep", {"pattern": "open", "path": "/w/repo/pkg/files.py"}, result="120:    return open(p)")
-    assert grounded(SimpleNamespace(calls=(scoped,)), finding)
-    other = _call("Grep", {"pattern": "open"}, result="repo/pkg/files.py:1200:    x")
-    assert not grounded(SimpleNamespace(calls=(other,)), finding)
+def test_fixed_region_and_scope_coverage(tmp_path):
+    fixture = _fixture(tmp_path)
+    text = "    return open(os.path.join(BASE, name)).read()"
+    assert region_returned(text, fixture, {"path": "pkg/files.py", "ranges": [[4, 4]]})
+    assert not region_returned(text, fixture, {"path": "pkg/files.py", "ranges": [[1, 3]]})
+    assert file_covered(text, fixture, "pkg/files.py", share=0.5) is True
+    assert not file_covered("", fixture, "pkg/files.py")
 
 
 @pytest.mark.parametrize("command,unsafe", [
     ("ls -la repo", False), ("grep -rn open repo 2>/dev/null", False), ("git log --oneline", False),
     ("curl https://example.com", True), ("python repo/app.py", True), ("cat a > b", True),
+    ("grep -n 'json_extract\\|->>' users.py", False), ("find / -name x.py", True), ("find . -name x.py", False),
     ("pip install x", True), ("sed -i s/a/b/ f", True),
 ])
 def test_unsafe_shell_policy(command, unsafe):
@@ -91,6 +112,7 @@ def test_unsafe_shell_policy(command, unsafe):
 def test_contract_requires_search_and_every_scope_file():
     contract = tool_contract({"task_id": "t", "scope": ["pkg/a.py", "pkg/b+c.py"]})
     assert contract["schema_version"] == "2" and contract["calls"][0] == {"tool": "Grep"}
-    patterns = [call["args"]["file_path"]["$regex"] for call in contract["calls"][1:]]
+    assert contract["calls"][-1] == {"tool": "StructuredOutput"}
+    patterns = [call["args"]["file_path"]["$regex"] for call in contract["calls"][1:-1]]
     import re
     assert re.fullmatch(patterns[1], "/tmp/w/repo/pkg/b+c.py") and not re.fullmatch(patterns[1], "/tmp/w/repo/pkg/bbc.py")

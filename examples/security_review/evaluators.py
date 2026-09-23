@@ -5,22 +5,24 @@ detects the advisory when it names the fixed file and a line within ``window``
 lines of a changed region. Other findings are *unverified*: they are neither
 counted as correct nor labelled false positives, because they may be real.
 
-Grounding joins the outcome with the tool trace: a finding is grounded when a
-completed Read returned the reported line, or a completed Grep returned a match
-on that line, before the final answer.
+Grounding joins the outcome with the tool trace: a finding is grounded when the
+pinned source text of the cited line appears in what some completed tool call
+(Read, Grep or a shell command) actually returned to the agent.
 """
 from __future__ import annotations
 
 from collections.abc import Mapping
-import re
+import json
+from pathlib import Path
 
 import agent_eval_flow as a
+from agent_eval_flow.adapters.cli import local_path
+from agent_eval_flow.adapters.common import contained_relative
 from agent_eval_flow.objects.tool_trace import trace_for_run
 from agent_eval_flow.objects.values import zero_resources
 
 from .scenario import BOUNDARY
 
-READ_DEFAULT_LIMIT = 2000
 
 
 def relative(path):
@@ -94,44 +96,81 @@ class AdvisoryDetection:
         return _row(context, run, spec, bool(matched), "ok", reason)
 
 
-def _completed(call):
-    return call.completion == "completed"
+MIN_TEXT = 12  # Shorter lines ("}", "return x") are too generic to attribute.
 
 
-def _read_covers(call, path, line):
-    if call.tool != "Read" or not _completed(call) or not isinstance(call.arguments, Mapping):
-        return False
-    if relative(call.arguments.get("file_path")) != path:
-        return False
-    offset = call.arguments.get("offset") or 1
-    limit = call.arguments.get("limit") or READ_DEFAULT_LIMIT
-    if type(offset) is not int or type(limit) is not int:
-        return False
-    return offset <= line < offset + limit
+def returned_text(value):
+    """Flatten a tool result into the text the agent actually received."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping):
+        return "\n".join(returned_text(v) for k, v in value.items() if k in ("text", "content", "stdout"))
+    if isinstance(value, (list, tuple)):
+        return "\n".join(returned_text(v) for v in value)
+    return ""
 
 
-def _grep_returns(call, path, line):
-    if call.tool != "Grep" or not _completed(call):
-        return False
-    text = call.result if isinstance(call.result, str) else str(call.result)
-    escaped = re.escape(path)
-    if re.search(rf"(?m)(?:^|/){escaped}:{line}[:\-]", text):
-        return True
-    # A Grep scoped to the single file prints bare line numbers.
-    scoped = isinstance(call.arguments, Mapping) and relative(call.arguments.get("path")) == path
-    return bool(scoped and re.search(rf"(?m)^{line}[:\-]", text))
+def evidence_text(trace):
+    """Text returned by completed tool calls, in any tool: Read, Grep, or shell."""
+    return "\n".join(returned_text(call.result) for call in trace.calls
+                     if call.completion == "completed" and call.tool != "StructuredOutput")
 
 
-def grounded(trace, finding):
+def distinctive(lines, line):
+    """The cited line's text, or the nearest distinctive neighbour within 2 lines."""
+    for offset in (0, 1, -1, 2, -2):
+        index = line - 1 + offset
+        if 0 <= index < len(lines) and len(lines[index].strip()) >= MIN_TEXT:
+            return lines[index].strip()
+    return None
+
+
+class Fixture:
+    def __init__(self, root, task_id):
+        self.root = Path(root) / task_id / "files"
+        self._cache = {}
+
+    def lines(self, path):
+        if path not in self._cache:
+            try:
+                self._cache[path] = contained_relative(self.root, path).read_text(
+                    encoding="utf-8", errors="replace").splitlines()
+            except (OSError, ValueError, a.ConfigurationError):
+                self._cache[path] = None
+        return self._cache[path]
+
+
+def grounded(text, fixture, finding):
     path, line = relative(finding.get("file")), finding.get("line")
-    if path is None or type(line) is not int:
+    lines = fixture.lines(path) if path else None
+    if not lines or type(line) is not int:
         return False
-    return any(_read_covers(call, path, line) or _grep_returns(call, path, line) for call in trace.calls)
+    target = distinctive(lines, line)
+    return target is not None and target in text
+
+
+def region_returned(text, fixture, location):
+    lines = fixture.lines(location["path"]) or []
+    return any(len(lines[i - 1].strip()) >= MIN_TEXT and lines[i - 1].strip() in text
+               for start, end in location["ranges"] for i in range(start, end + 1) if 0 < i <= len(lines))
+
+
+def file_covered(text, fixture, path, share=0.5):
+    """At least ``share`` of the file's distinctive lines were returned to the agent."""
+    lines = {line.strip() for line in fixture.lines(path) or () if len(line.strip()) >= MIN_TEXT}
+    return bool(lines) and sum(line in text for line in lines) / len(lines) >= share
 
 
 class EvidenceGrounding:
-    """``kind``: ``grounded_rate``, ``ungrounded_count`` or ``fixed_region_read``."""
-    ref = a.VersionRef(name="security-review.evidence-grounding", revision="1")
+    """Joins the outcome with what tools actually returned, independent of tool name.
+
+    ``kind``: ``grounded_rate``, ``ungrounded_count``, ``fixed_region_returned``
+    or ``scope_coverage`` (share of in-scope files at least half returned).
+    """
+    ref = a.VersionRef(name="security-review.evidence-grounding", revision="2")
+
+    def __init__(self, fixtures):
+        self.fixtures = Path(fixtures)
 
     def compute(self, spec, context, run):
         kind = spec.params["kind"]
@@ -143,21 +182,33 @@ class EvidenceGrounding:
             return _row(context, run, spec, None, "missing", "No tool trace; absence is not an empty trace")
         if trace.coverage.status != "observed" or trace.coverage.value is not True:
             return _row(context, run, spec, None, "missing", "Tool request coverage is partial or unknown")
-        evidence = trace.evidence()[:1]
-        if kind == "fixed_region_read":
-            truth = _truth(context)
-            covered = any(_read_covers(call, loc["path"], line) for call in trace.calls
-                          for loc in truth["locations"] for start, end in loc["ranges"]
-                          for line in range(start, end + 1))
-            return _row(context, run, spec, covered, "ok", "A completed Read returned the fixed region", evidence)
+        evidence, text = trace.evidence()[:1], evidence_text(trace)
+        fixture = Fixture(self.fixtures, context.unit["task_id"])
+        if kind == "fixed_region_returned":
+            covered = any(region_returned(text, fixture, loc) for loc in _truth(context)["locations"])
+            return _row(context, run, spec, covered, "ok",
+                        "Some completed tool call returned source text of the fixed region", evidence)
+        if kind == "scope_coverage":
+            scope = run_scope(run)
+            covered = [path for path in scope if file_covered(text, fixture, path)]
+            return _row(context, run, spec, len(covered) / len(scope) if scope else None,
+                        "ok" if scope else "missing", f"{len(covered)} of {len(scope)} in-scope files returned", evidence)
         items = findings(run)
         if items is None:
             return _row(context, run, spec, None, "missing", "No structured review output")
         if not items:
             return _row(context, run, spec, None, "not_applicable", "No findings reported")
-        ungrounded = [f for f in items if not grounded(trace, f)]
+        ungrounded = [f for f in items if not grounded(text, fixture, f)]
         if kind == "ungrounded_count":
             return _row(context, run, spec, float(len(ungrounded)), "ok",
-                        f"{len(ungrounded)} of {len(items)} findings cite lines no completed tool call returned", evidence)
+                        f"{len(ungrounded)} of {len(items)} findings cite code no completed tool call returned", evidence)
         return _row(context, run, spec, 1 - len(ungrounded) / len(items), "ok",
-                    "Share of findings whose cited line was returned by a completed Read or Grep", evidence)
+                    "Share of findings whose cited source line was returned by a completed tool call", evidence)
+
+
+def run_scope(run):
+    """In-scope paths from the retained review manifest of this run."""
+    manifest = run.artifacts.get("review.manifest")
+    if manifest is None:
+        return ()
+    return tuple(row["path"] for row in json.loads(local_path(manifest).read_text(encoding="utf-8"))["files"])

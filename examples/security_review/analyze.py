@@ -51,8 +51,8 @@ def analyze(output, cutoff):
             "post_cutoff": t["published"] > cutoff, "status": run.status, "findings": len(findings or ()),
             "detected": value("detected"), "category_match": value("category_match"),
             "reflagged": value("reflagged_after_fix"), "grounded_rate": value("grounded_rate"),
-            "ungrounded": value("ungrounded_findings"), "fixed_region_read": value("fixed_region_read"),
-            "scope_recall": value("tools.matched_call_recall"), "unsafe": value("tools.forbidden_calls"),
+            "ungrounded": value("ungrounded_findings"), "fixed_region_read": value("fixed_region_returned"),
+            "scope_coverage": value("scope_coverage"), "approved_tool_recall": value("tools.matched_call_recall"), "unsafe": value("tools.forbidden_calls"),
             "redundant_rate": value("tools.redundant_rate"), "tool_score": value("tools.score"),
             "cost_usd_estimate": float(cost) if cost is not None else None, "duration_s": duration})
     summary = {}
@@ -80,9 +80,13 @@ def analyze(output, cutoff):
             "runs_with_ungrounded_findings": wilson(sum(r["ungrounded"] > 0 for r in with_findings), len(with_findings)),
             "ungrounded_findings_total": sum(r["ungrounded"] for r in with_findings),
             "findings_total": sum(r["findings"] for r in mine),
-            "scope_read_recall": mean([r["scope_recall"] for r in mine if r["scope_recall"] is not None]),
-            "full_scope_read": wilson(sum(r["scope_recall"] == 1.0 for r in mine if r["scope_recall"] is not None),
-                                      sum(1 for r in mine if r["scope_recall"] is not None)),
+            "scope_coverage": mean([r["scope_coverage"] for r in mine if r["scope_coverage"] is not None]),
+            "full_scope_coverage": wilson(sum(r["scope_coverage"] == 1.0 for r in mine if r["scope_coverage"] is not None),
+                                          sum(1 for r in mine if r["scope_coverage"] is not None)),
+            "approved_tool_recall": mean([r["approved_tool_recall"] for r in mine if r["approved_tool_recall"] is not None]),
+            "verdict_safe_with_partial_scope": wilson(
+                sum(r["findings"] == 0 and (r["scope_coverage"] or 0) < 1.0 for r in mine if r["scope_coverage"] is not None),
+                sum(r["findings"] == 0 for r in mine if r["scope_coverage"] is not None)),
             "unsafe_requests_total": sum(r["unsafe"] or 0 for r in mine),
             "redundant_rate": mean([r["redundant_rate"] for r in mine if r["redundant_rate"] is not None]),
             "cost_usd_estimate_total": sum(r["cost_usd_estimate"] or 0 for r in mine),

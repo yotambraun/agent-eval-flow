@@ -416,3 +416,17 @@ def test_malformed_matchers_are_errors(scenario, matcher, match):
     row, receipt, _ = scenario[0]([{"tool": "search", "args": {"q": matcher}}], [], metric="score",
         contract_extra={"schema_version": "2"})
     assert row.status == "error" and match in receipt["reason"]
+
+
+def test_projection_skips_system_records_with_text_messages(scenario):
+    # Observed in live Claude Code 2.1.280 streams after a denied Bash request.
+    trace = project_stream(scenario[2], [
+        {"type": "system", "subtype": "init", "tools": ["Read", "Bash"]},
+        {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "a", "name": "Bash", "input": {"command": "ls $HOME"}}]}},
+        {"type": "system", "subtype": "permission_denied", "tool_name": "Bash", "tool_use_id": "a",
+         "message": "'Contains simple_expansion'"},
+        {"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": "a", "content": "denied", "is_error": True}]}},
+        {"type": "result", "subtype": "success", "result": "done"}])
+    assert [(call.tool, call.completion) for call in trace.calls] == [("Bash", "error")]
