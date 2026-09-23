@@ -9,10 +9,28 @@ from ..objects.values import unknown
 from .cli import CliCapture, NativeCliBackend, native_token, parse_jsonl
 
 
+# Without --bare, Claude Code can use a subscription login, but would otherwise
+# load the operator's settings, plugins, MCP servers, skills and CLAUDE.md files.
+# These flags keep that ambient context out of the evaluated agent.
+SUBSCRIPTION_ISOLATION = ("--setting-sources", "", "--strict-mcp-config",
+                          "--disable-slash-commands", "--no-session-persistence")
+
+
 @dataclass(frozen=True)
 class ClaudeDialect:
+    """``auth="api_key"`` runs ``--bare`` (ANTHROPIC_API_KEY only).
+
+    ``auth="subscription"`` uses the operator's Claude Code login with the
+    isolation flags above; the exact argv is retained in each run receipt.
+    Combine it with ``tools`` to bound the available tool set.
+    """
     revision: str = "stream-json/1"
     profile: str = "claude_local"
+    auth: str = "api_key"
+
+    def __post_init__(self):
+        if self.auth not in ("api_key", "subscription"):
+            raise o.ConfigurationError("Claude auth must be 'api_key' or 'subscription'")
 
     @property
     def accepted_settings(self):
@@ -39,7 +57,10 @@ class ClaudeDialect:
     def argv(self, executable, work, model, settings, schema):
         if model["provider"] != "anthropic":
             raise o.ConfigurationError("This Claude dialect supports the direct Anthropic provider only")
-        args = [str(executable), "--bare", "-p", "--output-format", "stream-json", "--verbose", "--model", model["id"]]
+        mode = ["--bare"] if self.auth == "api_key" else []
+        args = [str(executable), *mode, "-p", "--output-format", "stream-json", "--verbose", "--model", model["id"]]
+        if self.auth == "subscription":
+            args += SUBSCRIPTION_ISOLATION
         if schema is not None:
             args += ["--json-schema", json.dumps(plain(schema), allow_nan=False)]
         turns = settings.get("max_turns")

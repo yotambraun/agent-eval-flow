@@ -1,0 +1,646 @@
+[
+  {
+    "id": "GHSA-6wvf-77m9-58rm",
+    "cve": "CVE-2026-37004",
+    "project": "litellm",
+    "repo_url": "https://github.com/BerriAI/litellm",
+    "advisory_url": "https://github.com/advisories/GHSA-6wvf-77m9-58rm",
+    "published": "2026-08-27",
+    "post_cutoff": true,
+    "cwe": "CWE-1336",
+    "category": "template_injection",
+    "fix_commit": "d910a95661fce3cdd36f3b06c03ecf9c46c6457c",
+    "vulnerable_commit": "3a6db708ce9d7f47a99d3143412100807af3db8b",
+    "vulnerable_files": [
+      {
+        "path": "litellm/integrations/dotprompt/prompt_manager.py",
+        "vulnerable_line_ranges": [
+          [
+            10,
+            10
+          ],
+          [
+            62,
+            62
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "litellm/integrations/dotprompt/__init__.py",
+      "litellm/integrations/dotprompt/dotprompt_manager.py",
+      "litellm/integrations/dotprompt/prompt_manager.py",
+      "litellm/proxy/prompts/prompt_endpoints.py",
+      "litellm/proxy/prompts/prompt_registry.py",
+      "litellm/integrations/prompt_management_base.py"
+    ],
+    "scope_total_lines": 2678,
+    "notes": "Fix swaps jinja2 Environment for ImmutableSandboxedEnvironment in PromptManager (the engine behind /prompts/test). Caveat: fix commit also bundles unrelated hardening in key_management_endpoints.py and proxy_setting_endpoints.py; only prompt_manager.py is the SSTI ground truth.",
+    "verified": true,
+    "fix_commit_date": "2026-04-09",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-5jmr-gcrj-2c9q",
+    "cve": "CVE-2026-59820",
+    "project": "litellm",
+    "repo_url": "https://github.com/BerriAI/litellm",
+    "advisory_url": "https://github.com/advisories/GHSA-5jmr-gcrj-2c9q",
+    "published": "2026-07-22",
+    "post_cutoff": true,
+    "cwe": "CWE-22",
+    "category": "path_traversal",
+    "fix_commit": "6a15adcd64137d37f73dee76dfe7481f8c2d9196",
+    "vulnerable_commit": "e828a91eeefbc2e6e5fe7a34ddd40a5201216b15",
+    "vulnerable_files": [
+      {
+        "path": "litellm/llms/litellm_proxy/skills/prompt_injection.py",
+        "vulnerable_line_ranges": [
+          [
+            106,
+            107
+          ]
+        ]
+      },
+      {
+        "path": "litellm/llms/litellm_proxy/skills/sandbox_executor.py",
+        "vulnerable_line_ranges": [
+          [
+            99,
+            99
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "litellm/llms/litellm_proxy/skills/__init__.py",
+      "litellm/llms/litellm_proxy/skills/code_execution.py",
+      "litellm/llms/litellm_proxy/skills/constants.py",
+      "litellm/llms/litellm_proxy/skills/handler.py",
+      "litellm/llms/litellm_proxy/skills/prompt_injection.py",
+      "litellm/llms/litellm_proxy/skills/sandbox_executor.py",
+      "litellm/llms/litellm_proxy/skills/transformation.py"
+    ],
+    "scope_total_lines": 1541,
+    "notes": "Zip entry names from skill archives are used unnormalized as dict keys and then os.path.join'ed into a temp dir; fix adds normpath/'..' rejection and an abspath containment check at exactly these lines.",
+    "verified": true,
+    "fix_commit_date": "2026-04-09",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-7488-6r32-c95q",
+    "cve": "CVE-2026-59822",
+    "project": "litellm",
+    "repo_url": "https://github.com/BerriAI/litellm",
+    "advisory_url": "https://github.com/advisories/GHSA-7488-6r32-c95q",
+    "published": "2026-07-22",
+    "post_cutoff": true,
+    "cwe": "CWE-287",
+    "category": "auth_bypass",
+    "fix_commit": "73869f0faf7d11ee21adcb5f91b8c33a340b6c2c",
+    "vulnerable_commit": "70a986e6893b04adb9caf3413dd358c8a17d44b2",
+    "vulnerable_files": [
+      {
+        "path": "litellm/proxy/_experimental/mcp_server/auth/user_api_key_auth_mcp.py",
+        "vulnerable_line_ranges": [
+          [
+            120,
+            120
+          ],
+          [
+            129,
+            149
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "litellm/proxy/_experimental/mcp_server/auth/user_api_key_auth_mcp.py",
+      "litellm/proxy/_experimental/mcp_server/auth/litellm_auth_handler.py",
+      "litellm/proxy/_experimental/mcp_server/utils.py",
+      "litellm/proxy/_experimental/mcp_server/sse_transport.py"
+    ],
+    "scope_total_lines": 1477,
+    "notes": "Single-file fix in MCPRequestHandler.process_mcp_request: substring '.well-known' public-route check and unconditional 401/403 -> anonymous UserAPIKeyAuth() OAuth2 fallback. Two related flaws in one function; both are the ground truth.",
+    "verified": true,
+    "fix_commit_date": "2026-04-25",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-gqvg-gmmx-x4hm",
+    "cve": null,
+    "project": "mlflow",
+    "repo_url": "https://github.com/mlflow/mlflow",
+    "advisory_url": "https://github.com/advisories/GHSA-gqvg-gmmx-x4hm",
+    "published": "2026-09-01",
+    "post_cutoff": true,
+    "cwe": "CWE-502",
+    "category": "deserialization",
+    "fix_commit": "38615289094a4b700a20b5d1dbfbe57bdfb0411f",
+    "vulnerable_commit": "6135259c681e4d01cdd55923db8c51a967576148",
+    "vulnerable_files": [
+      {
+        "path": "mlflow/statsmodels/__init__.py",
+        "vulnerable_line_ranges": [
+          [
+            307,
+            309
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "mlflow/statsmodels/__init__.py",
+      "mlflow/sklearn/__init__.py",
+      "mlflow/environment_variables.py",
+      "mlflow/utils/model_utils.py"
+    ],
+    "scope_total_lines": 4926,
+    "notes": "Fix only ADDS an MLFLOW_ALLOW_PICKLE_DESERIALIZATION guard to statsmodels _load_model (no lines removed); ranges mark the unguarded _load_model/smio.load_pickle body. Caveat: detecting it requires noticing the guard other flavors (e.g. mlflow/sklearn, included in scope) apply.",
+    "verified": true,
+    "fix_commit_date": "2026-07-27",
+    "fix_commit_post_cutoff": true
+  },
+  {
+    "id": "GHSA-xrqw-3rrv-vx5w",
+    "cve": "CVE-2026-9856",
+    "project": "transformers",
+    "repo_url": "https://github.com/huggingface/transformers",
+    "advisory_url": "https://github.com/advisories/GHSA-xrqw-3rrv-vx5w",
+    "published": "2026-08-02",
+    "post_cutoff": true,
+    "cwe": "CWE-22",
+    "category": "path_traversal",
+    "fix_commit": "eaaaf8494dd5386634ae37d1d122212fdc315be5",
+    "vulnerable_commit": "47949d3a0e1cf9248f2a3eb3cd0deb12ee37b9e9",
+    "vulnerable_files": [
+      {
+        "path": "src/transformers/processing_utils.py",
+        "vulnerable_line_ranges": [
+          [
+            1148,
+            1149
+          ]
+        ]
+      },
+      {
+        "path": "src/transformers/tokenization_utils_base.py",
+        "vulnerable_line_ranges": [
+          [
+            3316,
+            3317
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "src/transformers/processing_utils.py",
+      "src/transformers/tokenization_utils_base.py",
+      "src/transformers/utils/chat_template_utils.py",
+      "src/transformers/utils/hub.py"
+    ],
+    "scope_total_lines": 7455,
+    "notes": "Pure-insertion fix: containment check added right after os.path.join(chat_template_dir, f'{template_name}.jinja') in both save_pretrained paths; ranges mark the join+open lines. Caveat: the two scope files are very large (2.3k and 3.6k lines).",
+    "verified": true,
+    "fix_commit_date": "2026-05-25",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-5gwj-m78q-7pq3",
+    "cve": "CVE-2026-12481",
+    "project": "keras",
+    "repo_url": "https://github.com/keras-team/keras",
+    "advisory_url": "https://github.com/advisories/GHSA-5gwj-m78q-7pq3",
+    "published": "2026-07-03",
+    "post_cutoff": true,
+    "cwe": "CWE-502",
+    "category": "deserialization",
+    "fix_commit": "55888d3becbdbb45dc16a55b489900f911e2dde5",
+    "vulnerable_commit": "5798af8d3ba329511acced3cd622e863e42fe2ec",
+    "vulnerable_files": [
+      {
+        "path": "keras/src/layers/core/lambda_layer.py",
+        "vulnerable_line_ranges": [
+          [
+            184,
+            184
+          ]
+        ]
+      },
+      {
+        "path": "keras/src/utils/torch_utils.py",
+        "vulnerable_line_ranges": [
+          [
+            166,
+            166
+          ],
+          [
+            170,
+            170
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "keras/src/layers/core/lambda_layer.py",
+      "keras/src/utils/torch_utils.py",
+      "keras/src/saving/serialization_lib.py",
+      "keras/src/saving/object_registration.py",
+      "keras/src/layers/core/wrapper.py"
+    ],
+    "scope_total_lines": 1583,
+    "notes": "safe_mode = safe_mode or in_safe_mode() treats an unset (None) scope as unsafe, so direct from_config() calls deserialize Lambda bytecode / torch.load pickles; fix makes both from_config methods fail closed. Advisory also cites follow-up d338a452 (PR #23165); this candidate uses the first fix 55888d3b.",
+    "verified": true,
+    "fix_commit_date": "2026-06-10",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-hhrp-gw25-jr43",
+    "cve": "CVE-2026-57516",
+    "project": "ray",
+    "repo_url": "https://github.com/ray-project/ray",
+    "advisory_url": "https://github.com/advisories/GHSA-hhrp-gw25-jr43",
+    "published": "2026-07-24",
+    "post_cutoff": true,
+    "cwe": "CWE-502",
+    "category": "deserialization",
+    "fix_commit": "41443a18f9e6403a072de69098a279c23e2d943c",
+    "vulnerable_commit": "a6416a64596db70e3de2404342b7f51ebdb8b5a1",
+    "vulnerable_files": [
+      {
+        "path": "python/ray/data/_internal/datasource/webdataset_datasource.py",
+        "vulnerable_line_ranges": [
+          [
+            213,
+            222
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "python/ray/data/_internal/datasource/webdataset_datasource.py",
+      "python/ray/data/_internal/datasource/webdataset_datasink.py",
+      "python/ray/data/_internal/datasource/numpy_datasource.py",
+      "python/ray/data/_internal/datasource/torch_datasource.py",
+      "python/ray/data/datasource/file_based_datasource.py"
+    ],
+    "scope_total_lines": 1189,
+    "notes": "_default_decoder calls torch.load(weights_only=False) and pickle.loads on .pt/.pth/.pkl members of untrusted tar shards; fix gates both branches behind an env opt-in. Mostly insertions; ranges mark the two unsafe branches.",
+    "verified": true,
+    "fix_commit_date": "2026-05-19",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-wpmr-8h3q-fwj7",
+    "cve": "CVE-2026-87016",
+    "project": "open-webui",
+    "repo_url": "https://github.com/open-webui/open-webui",
+    "advisory_url": "https://github.com/advisories/GHSA-wpmr-8h3q-fwj7",
+    "published": "2026-09-10",
+    "post_cutoff": true,
+    "cwe": "CWE-287",
+    "category": "auth_bypass",
+    "fix_commit": "73c1f5806aeb6345dad5de8f5aa26d1f3d0bef80",
+    "vulnerable_commit": "90724cdee01bd9260d15f8482d4e0d2fbe2ebffb",
+    "vulnerable_files": [
+      {
+        "path": "backend/open_webui/models/users.py",
+        "vulnerable_line_ranges": [
+          [
+            363,
+            372
+          ],
+          [
+            382,
+            391
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "backend/open_webui/models/users.py",
+      "backend/open_webui/models/auths.py",
+      "backend/open_webui/models/oauth_sessions.py",
+      "backend/open_webui/utils/oauth.py",
+      "backend/open_webui/routers/scim.py"
+    ],
+    "scope_total_lines": 4895,
+    "notes": "OAuth sub / SCIM external_id lookups use JSON column .contains() on SQLite (a substring LIKE, wildcard-injectable) while Postgres uses exact match; fix replaces both with subscript equality. Unambiguous single-file fix; also classifiable as SQL LIKE-wildcard injection (CWE-155).",
+    "verified": true,
+    "fix_commit_date": "2026-08-17",
+    "fix_commit_post_cutoff": true
+  },
+  {
+    "id": "GHSA-74h3-cxq7-vc5q",
+    "cve": "CVE-2026-59216",
+    "project": "open-webui",
+    "repo_url": "https://github.com/open-webui/open-webui",
+    "advisory_url": "https://github.com/advisories/GHSA-74h3-cxq7-vc5q",
+    "published": "2026-07-24",
+    "post_cutoff": true,
+    "cwe": "CWE-862",
+    "category": "auth_bypass",
+    "fix_commit": "386ac958144dbbbf0aa6e268070d72b681a318aa",
+    "vulnerable_commit": "914039ac8111148a27f49bc0ca7ceedc5284ecb3",
+    "vulnerable_files": [
+      {
+        "path": "backend/open_webui/socket/main.py",
+        "vulnerable_line_ranges": [
+          [
+            1025,
+            1027
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "backend/open_webui/socket/main.py",
+      "backend/open_webui/socket/utils.py",
+      "backend/open_webui/utils/session_pool.py",
+      "backend/open_webui/utils/code_interpreter.py",
+      "backend/open_webui/utils/tools.py"
+    ],
+    "scope_total_lines": 3231,
+    "notes": "get_event_call's __event_caller__ only checks the client-supplied session_id is connected, not that it belongs to the requesting user; 3-line fix adds the ownership check. Very localized.",
+    "verified": true,
+    "fix_commit_date": "2026-06-29",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-4hhp-h66f-j5j7",
+    "cve": "CVE-2026-73560",
+    "project": "vllm",
+    "repo_url": "https://github.com/vllm-project/vllm",
+    "advisory_url": "https://github.com/advisories/GHSA-4hhp-h66f-j5j7",
+    "published": "2026-09-08",
+    "post_cutoff": true,
+    "cwe": "CWE-918",
+    "category": "ssrf",
+    "fix_commit": "54503ecec0f3ac31e5ecfc5f28652e4cc42307b5",
+    "vulnerable_commit": "006731153693b01320feb93ab165de24fc364b0c",
+    "vulnerable_files": [
+      {
+        "path": "vllm/transformers_utils/processors/mimo_v2_omni.py",
+        "vulnerable_line_ranges": [
+          [
+            231,
+            251
+          ],
+          [
+            454,
+            480
+          ],
+          [
+            505,
+            508
+          ],
+          [
+            587,
+            588
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "vllm/transformers_utils/processors/mimo_v2_omni.py",
+      "vllm/model_executor/models/mimo_v2_omni.py",
+      "vllm/transformers_utils/processors/kimi_audio.py",
+      "vllm/transformers_utils/processors/__init__.py",
+      "vllm/multimodal/media/connector.py"
+    ],
+    "scope_total_lines": 3557,
+    "notes": "_fetch_image and preprocess_audio do raw requests.get / Image.open on user-supplied URL/path strings, bypassing MediaConnector; fix deletes those paths (also includes local file read). Other small diff hunks (imports, docstrings) omitted from ranges.",
+    "verified": true,
+    "fix_commit_date": "2026-07-11",
+    "fix_commit_post_cutoff": true
+  },
+  {
+    "id": "GHSA-x2rj-828p-hx9m",
+    "cve": "CVE-2026-61539",
+    "project": "xinference",
+    "repo_url": "https://github.com/xorbitsai/inference",
+    "advisory_url": "https://github.com/advisories/GHSA-x2rj-828p-hx9m",
+    "published": "2026-08-21",
+    "post_cutoff": true,
+    "cwe": "CWE-95",
+    "category": "code_injection",
+    "fix_commit": "1b3d220f342ce68d34cec4586d9409d457dadc42",
+    "vulnerable_commit": "4cefcaa1e63d7e29d26bcd4be96cb267da113871",
+    "vulnerable_files": [
+      {
+        "path": "xinference/model/llm/tool_parsers/llama3_tool_parser.py",
+        "vulnerable_line_ranges": [
+          [
+            46,
+            48
+          ]
+        ]
+      },
+      {
+        "path": "xinference/model/llm/utils.py",
+        "vulnerable_line_ranges": [
+          [
+            753,
+            755
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "xinference/model/llm/tool_parsers/llama3_tool_parser.py",
+      "xinference/model/llm/tool_parsers/abstract_tool_parser.py",
+      "xinference/model/llm/tool_parsers/__init__.py",
+      "xinference/model/llm/tool_parsers/qwen_tool_parser.py",
+      "xinference/model/llm/tool_parsers/glm4_tool_parser.py",
+      "xinference/model/llm/utils.py"
+    ],
+    "scope_total_lines": 2015,
+    "notes": "eval(model_output, {}, {}) on LLM output in two Llama3 tool-call parsers, replaced by json.loads/ast.literal_eval. Textbook ground truth; fix commit predates publication by ~4 months.",
+    "verified": true,
+    "fix_commit_date": "2026-04-14",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-2vh9-42vm-xmv2",
+    "cve": "CVE-2025-66455",
+    "project": "lmdeploy",
+    "repo_url": "https://github.com/InternLM/lmdeploy",
+    "advisory_url": "https://github.com/advisories/GHSA-2vh9-42vm-xmv2",
+    "published": "2026-09-18",
+    "post_cutoff": true,
+    "cwe": "CWE-502",
+    "category": "deserialization",
+    "fix_commit": "f05b4ad8bf2e2d84101a1d63b3c44fadd99223b2",
+    "vulnerable_commit": "eb94bd8cb4155eb055e2404d8304a7af089a6099",
+    "vulnerable_files": [
+      {
+        "path": "lmdeploy/pytorch/disagg/conn/engine_conn.py",
+        "vulnerable_line_ranges": [
+          [
+            74,
+            75
+          ],
+          [
+            79,
+            87
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "lmdeploy/pytorch/disagg/conn/__init__.py",
+      "lmdeploy/pytorch/disagg/conn/engine_conn.py",
+      "lmdeploy/pytorch/disagg/conn/protocol.py",
+      "lmdeploy/pytorch/disagg/conn/proxy_conn.py"
+    ],
+    "scope_total_lines": 499,
+    "notes": "ZMQ P2P receiver uses recv_pyobj() (pickle.loads) on peer bytes; fix switches to send_json/recv_json + pydantic validation. Caveat: CVE id is 2025-series although GHSA published 2026-09-18; sibling advisory GHSA-5h8j-6crg-7rmw covers a different zmq_rpc path (not this commit).",
+    "verified": true,
+    "fix_commit_date": "2026-08-13",
+    "fix_commit_post_cutoff": true
+  },
+  {
+    "id": "GHSA-4x4j-2g7c-83w6",
+    "cve": "CVE-2026-55798",
+    "project": "pillow",
+    "repo_url": "https://github.com/python-pillow/Pillow",
+    "advisory_url": "https://github.com/advisories/GHSA-4x4j-2g7c-83w6",
+    "published": "2026-07-20",
+    "post_cutoff": true,
+    "cwe": "CWE-78",
+    "category": "command_injection",
+    "fix_commit": "8404ea5fe5df40fc34aa1e51403dd6fce0778b8a",
+    "vulnerable_commit": "87e788339e8746e7ceb8e901df9b0c7fda55e975",
+    "vulnerable_files": [
+      {
+        "path": "src/PIL/ImageShow.py",
+        "vulnerable_line_ranges": [
+          [
+            146,
+            150
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "src/PIL/ImageShow.py",
+      "src/PIL/ImageGrab.py",
+      "src/PIL/EpsImagePlugin.py",
+      "src/PIL/_util.py"
+    ],
+    "scope_total_lines": 1106,
+    "notes": "WindowsViewer.show_file runs subprocess.Popen(get_command(path), shell=True) with the path interpolated into a cmd string (get_command at pre-fix lines 133-138); fix uses os.startfile. Caveat: advisory lists two follow-up hardening commits (b0e06caa, 88194166) that further escape get_command; Windows-only code path.",
+    "verified": true,
+    "fix_commit_date": "2026-06-20",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-v3mh-27qj-w836",
+    "cve": "CVE-2026-49297",
+    "project": "apache-airflow",
+    "repo_url": "https://github.com/apache/airflow",
+    "advisory_url": "https://github.com/advisories/GHSA-v3mh-27qj-w836",
+    "published": "2026-07-06",
+    "post_cutoff": true,
+    "cwe": "CWE-22",
+    "category": "path_traversal",
+    "fix_commit": "0385bae70553223677753047b3e779d8b86b15c4",
+    "vulnerable_commit": "f3037c173f61ecc3fbcbe53b57131738760d8a38",
+    "vulnerable_files": [
+      {
+        "path": "providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_sftp.py",
+        "vulnerable_line_ranges": [
+          [
+            179,
+            179
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_sftp.py",
+      "providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_local.py",
+      "providers/google/src/airflow/providers/google/cloud/transfers/sftp_to_gcs.py",
+      "providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_gcs.py"
+    ],
+    "scope_total_lines": 1244,
+    "notes": "GCSToSFTPOperator._resolve_destination_path returns os.path.join(destination_path, source_object) with bucket-controlled object names; one-line ground truth. Caveat: advisory also names GCSTimeSpanFileTransformOperator (operators/gcs.py) which is NOT touched by this commit and is deliberately excluded from scope.",
+    "verified": true,
+    "fix_commit_date": "2026-06-17",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-4fh7-7jx4-8f6c",
+    "cve": "CVE-2026-49296",
+    "project": "apache-airflow",
+    "repo_url": "https://github.com/apache/airflow",
+    "advisory_url": "https://github.com/advisories/GHSA-4fh7-7jx4-8f6c",
+    "published": "2026-07-07",
+    "post_cutoff": true,
+    "cwe": "CWE-639",
+    "category": "auth_bypass",
+    "fix_commit": "992e602015b5e9a3fd297e18047cff9d85094c95",
+    "vulnerable_commit": "e893ec65ea199b0be606baa16196c50b0e952c1b",
+    "vulnerable_files": [
+      {
+        "path": "airflow-core/src/airflow/api_fastapi/core_api/routes/public/dag_sources.py",
+        "vulnerable_line_ranges": [
+          [
+            53,
+            59
+          ],
+          [
+            71,
+            76
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "airflow-core/src/airflow/api_fastapi/core_api/routes/public/dag_sources.py",
+      "airflow-core/src/airflow/api_fastapi/core_api/routes/public/import_error.py",
+      "airflow-core/src/airflow/api_fastapi/core_api/routes/public/dag_versions.py",
+      "airflow-core/src/airflow/api_fastapi/core_api/security.py"
+    ],
+    "scope_total_lines": 1450,
+    "notes": "get_dag_source returns the whole file source after only a per-dag CODE check, leaking co-located DAGs a user cannot read; fix adds a per-file authorization overlay (import_error.py in scope already does the equivalent check). Missing-check vuln; ranges mark signature and response construction.",
+    "verified": true,
+    "fix_commit_date": "2026-06-05",
+    "fix_commit_post_cutoff": false
+  },
+  {
+    "id": "GHSA-frmv-pr5f-9mcr",
+    "cve": "CVE-2025-64459",
+    "project": "django",
+    "repo_url": "https://github.com/django/django",
+    "advisory_url": "https://github.com/advisories/GHSA-frmv-pr5f-9mcr",
+    "published": "2025-11-05",
+    "post_cutoff": false,
+    "cwe": "CWE-89",
+    "category": "sql_injection",
+    "fix_commit": "6703f364d767e949c5b0e4016433ef75063b4f9b",
+    "vulnerable_commit": "4f5d904b63751dea9ffc3b0e046404a7fa5881ac",
+    "vulnerable_files": [
+      {
+        "path": "django/db/models/query_utils.py",
+        "vulnerable_line_ranges": [
+          [
+            51,
+            56
+          ]
+        ]
+      }
+    ],
+    "review_scope": [
+      "django/db/models/query_utils.py",
+      "django/db/models/sql/where.py",
+      "django/utils/tree.py",
+      "django/db/models/lookups.py"
+    ],
+    "scope_total_lines": 1841,
+    "notes": "PRE-CUTOFF (published 2025-11-05). Q.__init__ accepts arbitrary _connector which is later interpolated into SQL by WhereNode.as_sql (sql/where.py, in scope); fix adds an allowlist in Q.__init__ only (pure insertion). Using the stable/5.2.x backport commit; main-branch commit not listed in advisory. A reviewer flagging where.py is arguably also correct.",
+    "verified": true,
+    "fix_commit_date": "2025-11-05",
+    "fix_commit_post_cutoff": false
+  }
+]

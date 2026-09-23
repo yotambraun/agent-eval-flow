@@ -101,3 +101,18 @@ def test_cli_preserves_malformed_trace_and_reports_projection_issue(tmp_path):
     parsed = CodexDialect().parse(replace(valid, stdout=broken))
     assert len(parsed.events) == 1 and "line:2" in parsed.issues[0]
     assert Path(broken.uri).read_bytes().endswith(b"NOT_JSON\n")
+
+
+def test_claude_subscription_mode_drops_bare_and_isolates_ambient_context(tmp_path):
+    model, settings = {"id": "m", "provider": "anthropic"}, {"tools": ["Read", "Grep"]}
+    default = ClaudeDialect().argv("claude", tmp_path, model, settings, None)
+    assert "--bare" in default and "--setting-sources" not in default
+    argv = ClaudeDialect(auth="subscription").argv("claude", tmp_path, model, settings, None)
+    assert "--bare" not in argv
+    index = argv.index("--setting-sources")
+    assert argv[index + 1] == ""
+    for flag in ("--strict-mcp-config", "--disable-slash-commands", "--no-session-persistence"):
+        assert flag in argv
+    assert argv[argv.index("--tools") + 1] == "Read,Grep"
+    with pytest.raises(a.ConfigurationError):
+        ClaudeDialect(auth="oauth")

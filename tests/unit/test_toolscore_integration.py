@@ -41,7 +41,7 @@ def scenario(tmp_path):
     evaluator = integration.ToolscoreEvaluator(artifacts=cache)
 
     def evaluate(expected, actual, *, coverage=True, missing_trace=False, missing_contract=False,
-                 metric="score", alternatives=(), **settings):
+                 metric="score", alternatives=(), contract_extra=None, **settings):
         calls = tuple(ToolRequest(call_id=f"call-{i}", execution_id="main", tool=call["tool"],
             arguments=call.get("args"), evidence=(evidence,)) for i, call in enumerate(actual))
         trace = ToolTrace(collector=a.VersionRef(name="fixture", revision="1"), boundary="requests", scope="main fixture",
@@ -50,7 +50,7 @@ def scenario(tmp_path):
         saved = replace(run, events=() if missing_trace else (trace.to_event(id="trace", execution_id="main"),))
         context = SimpleNamespace(unit={"task_id": "task"}, evaluation_cost_scope=("model",), references={} if missing_contract else {
             "tool_expectations": ({"contract": {"id": "test", "revision": "1", "calls": expected,
-                "alternatives": list(alternatives)}},)})
+                "alternatives": list(alternatives), **(contract_extra or {})}},)})
         spec = a.MetricSpec(id="tools." + metric, source=a.EvaluatorSource(ref=evaluator.ref), output_type="float",
             role="diagnostic", params={"boundary": "requests", "metric": metric, **settings})
         output = evaluator.compute(spec, context, saved)
@@ -346,3 +346,73 @@ import agent_eval_flow.reporting.toolscore
 assert 'toolscore' not in sys.modules
 """
     subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+
+@requires_toolscore
+def test_json_matchers_match_like_toolscore_in_strict_mode(scenario):
+    expected = [{"tool": "Read", "args": {"file_path": {"$regex": r".*/app/views\.py"}}},
+                {"tool": "Grep", "args": {"pattern": {"$any": True}, "path": {"$type": "string"}}}]
+    actual = [{"tool": "Grep", "args": {"pattern": "execute\\(", "path": "/w/app"}},
+              {"tool": "Read", "args": {"file_path": "/w/app/views.py"}}]
+    v2 = {"schema_version": "2"}
+    for metric, value in (("matched_call_recall", 1.0), ("argument_f1", 1.0)):
+        row, receipt, _ = scenario[0](expected, actual, metric=metric, ordering="unordered", contract_extra=v2)
+        assert row.status == "ok" and row.value == pytest.approx(value), receipt["reason"]
+    assert receipt["contract"]["calls"][0]["args"]["file_path"] == {"$regex": r".*/app/views\.py"}
+    wrong = [{"tool": "Read", "args": {"file_path": "/w/app/models.py"}}]
+    row, receipt, _ = scenario[0](expected, wrong, metric="matched_call_recall", contract_extra=v2)
+    assert row.value == 0.0 and receipt["alternatives"][0]["unmatched_expected"] == [0, 1]
+
+
+@requires_toolscore
+def test_matched_recall_is_one_to_one_and_argument_aware(scenario):
+    read = {"tool": "Read", "args": {"file_path": {"$regex": ".*"}}}
+    row, _, _ = scenario[0]([read, read], [{"tool": "Read", "args": {"file_path": "/a"}}],
+        metric="matched_call_recall", contract_extra={"schema_version": "2"})
+    assert row.value == 0.5
+    # Name-only recall is satisfied by a wrong-argument request; matched recall is not.
+    call = {"tool": "search", "args": {"q": "x"}}
+    wrong = [{"tool": "search", "args": {"q": "y"}}]
+    assert scenario[0]([call], wrong, metric="required_call_recall")[0].value == 1.0
+    assert scenario[0]([call], wrong, metric="matched_call_recall")[0].value == 0.0
+
+
+@requires_toolscore
+def test_forbidden_calls_are_counted_and_vacuous_when_undeclared(scenario):
+    forbidden = [{"tool": "Bash", "args": {"command": {"$regex": r"(?s).*\b(curl|wget)\b.*"}}}, {"tool": "Write"}]
+    actual = [{"tool": "Bash", "args": {"command": "curl http://x"}}, {"tool": "Bash", "args": {"command": "ls"}},
+              {"tool": "Write", "args": {"file_path": "/a", "content": ""}}]
+    row, receipt, _ = scenario[0]([], actual, metric="forbidden_calls",
+        contract_extra={"schema_version": "2", "forbidden": forbidden})
+    assert row.status == "ok" and row.value == 2.0
+    assert receipt["alternatives"][0]["forbidden_violations"] == [0, 2]
+    row, _, _ = scenario[0]([], actual, metric="forbidden_calls")
+    assert row.value == 0.0 and "vacuous" in row.reason
+
+
+@pytest.mark.parametrize("extra,match", [
+    ({"forbidden": [{"tool": "Write"}]}, "schema_version '2'"),
+    ({"schema_version": "2", "calls_override": True}, "Extra inputs"),
+])
+def test_contract_v2_features_require_explicit_version(scenario, extra, match):
+    extra = dict(extra)
+    row, receipt, _ = scenario[0]([], [], metric="forbidden_calls", contract_extra=extra)
+    assert row.status == "error" and match in receipt["reason"]
+
+
+@pytest.mark.parametrize("args,match", [
+    ({"q": {"$regex": "x"}}, "schema_version '2'"),
+])
+def test_matchers_rejected_in_version_one(scenario, args, match):
+    row, receipt, _ = scenario[0]([{"tool": "search", "args": args}], [], metric="score")
+    assert row.status == "error" and match in receipt["reason"]
+
+
+@pytest.mark.parametrize("matcher,match", [
+    ({"$regex": "("}, "missing"), ({"$any": 1}, "takes true"), ({"$type": "date"}, "takes one of"),
+    ({"$nope": 1}, "Unknown argument matcher"), ({"$one_of": []}, "non-empty"),
+])
+def test_malformed_matchers_are_errors(scenario, matcher, match):
+    row, receipt, _ = scenario[0]([{"tool": "search", "args": {"q": matcher}}], [], metric="score",
+        contract_extra={"schema_version": "2"})
+    assert row.status == "error" and match in receipt["reason"]
