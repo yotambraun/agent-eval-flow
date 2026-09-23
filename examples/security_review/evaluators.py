@@ -117,12 +117,22 @@ def evidence_text(trace):
 
 
 def distinctive(lines, line):
-    """The cited line's text, or the nearest distinctive neighbour within 2 lines."""
+    """The cited line's text, or the nearest distinctive neighbour within 2 lines.
+
+    Lines that occur once in the file are preferred, so matching text cannot have
+    come from elsewhere in the same file.
+    """
+    counts = {}
+    for text in lines:
+        counts[text.strip()] = counts.get(text.strip(), 0) + 1
+    fallback = None
     for offset in (0, 1, -1, 2, -2):
         index = line - 1 + offset
         if 0 <= index < len(lines) and len(lines[index].strip()) >= MIN_TEXT:
-            return lines[index].strip()
-    return None
+            if counts[lines[index].strip()] == 1:
+                return lines[index].strip()
+            fallback = fallback or lines[index].strip()
+    return fallback
 
 
 class Fixture:
@@ -150,8 +160,13 @@ def grounded(text, fixture, finding):
 
 
 def region_returned(text, fixture, location):
+    """A line of the fixed region that occurs once in its file was returned."""
     lines = fixture.lines(location["path"]) or []
-    return any(len(lines[i - 1].strip()) >= MIN_TEXT and lines[i - 1].strip() in text
+    counts = {}
+    for line in lines:
+        counts[line.strip()] = counts.get(line.strip(), 0) + 1
+    return any(len(lines[i - 1].strip()) >= MIN_TEXT and counts[lines[i - 1].strip()] == 1
+               and lines[i - 1].strip() in text
                for start, end in location["ranges"] for i in range(start, end + 1) if 0 < i <= len(lines))
 
 
@@ -167,7 +182,7 @@ class EvidenceGrounding:
     ``kind``: ``grounded_rate``, ``ungrounded_count``, ``fixed_region_returned``
     or ``scope_coverage`` (share of in-scope files at least half returned).
     """
-    ref = a.VersionRef(name="security-review.evidence-grounding", revision="2")
+    ref = a.VersionRef(name="security-review.evidence-grounding", revision="3")
 
     def __init__(self, fixtures):
         self.fixtures = Path(fixtures)

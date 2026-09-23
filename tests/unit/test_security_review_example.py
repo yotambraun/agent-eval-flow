@@ -103,6 +103,8 @@ def test_fixed_region_and_scope_coverage(tmp_path):
     ("curl https://example.com", True), ("python repo/app.py", True), ("cat a > b", True),
     ("grep -n 'json_extract\\|->>' users.py", False), ("find / -name x.py", True), ("find . -name x.py", False),
     ("pip install x", True), ("sed -i s/a/b/ f", True),
+    ("grep -rn load repo/python/ray/data/read_api.py", False), ("cd repo/python/ray; cat a.py", False),
+    ("ls; python3 -c 'import ray'", True), ("find . | xargs python3 x.py", True), ("echo $(python -V)", True),
 ])
 def test_unsafe_shell_policy(command, unsafe):
     import re
@@ -116,3 +118,12 @@ def test_contract_requires_search_and_every_scope_file():
     patterns = [call["args"]["file_path"]["$regex"] for call in contract["calls"][1:-1]]
     import re
     assert re.fullmatch(patterns[1], "/tmp/w/repo/pkg/b+c.py") and not re.fullmatch(patterns[1], "/tmp/w/repo/pkg/bbc.py")
+
+
+def test_activity_end_never_precedes_start_after_clock_step(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from agent_eval_flow.evaluation import engine
+    started = datetime.now(timezone.utc) + timedelta(seconds=30)  # the clock later steps back
+    assert engine.activity_end(started) == started
+    earlier = datetime.now(timezone.utc) - timedelta(seconds=1)
+    assert engine.activity_end(earlier) > earlier
