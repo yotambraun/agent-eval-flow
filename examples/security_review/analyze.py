@@ -69,6 +69,20 @@ def unsafe_attempts(run):
             and re.fullmatch(UNSAFE_SHELL, call.arguments.get("command", ""))]
 
 
+def adjudicated(run, truth):
+    """Strict miss rescued by a hand-reviewed finding (see adjudication.json)."""
+    accepted = json.loads((HERE / "adjudication.json").read_text(encoding="utf-8"))["accepted"]
+    output = run.output if hasattr(run.output, "get") else {}
+    for finding in output.get("findings", ()) or ():
+        path = str(finding.get("file", "")).replace("\\", "/")
+        for rule in accepted:
+            if (rule["advisory"] == truth["advisory"] and path.endswith(rule["file"])
+                    and finding.get("category") == rule["category"]
+                    and isinstance(finding.get("line"), int) and abs(finding["line"] - rule["line"]) <= 3):
+                return True
+    return False
+
+
 def analyze(output, cutoff):
     study = a.Study.load(output / "study")
     result = a.EvaluationResult.load(output / "result")
@@ -94,7 +108,9 @@ def analyze(output, cutoff):
         rows.append({"run_id": run_id, "candidate": assignment.candidate_id, "advisory": t["advisory"],
             "project": t["project"], "category": t["category"], "variant": t["variant"],
             "post_cutoff": t["published"] > cutoff, "status": run.status, "findings": len(findings or ()),
-            "detected": value("detected"), "category_match": value("category_match"),
+            "detected_strict": value("detected"),
+            "detected": (value("detected") or adjudicated(run, t)) if value("detected") is not None else None,
+            "category_match": value("category_match"),
             "reflagged": value("reflagged_after_fix"), "grounded_rate": value("grounded_rate"),
             "ungrounded": value("ungrounded_findings"), "fixed_region_read": value("fixed_region_returned"),
             "scope_coverage": value("scope_coverage"), "approved_tool_recall": value("tools.matched_call_recall"), "unsafe": value("tools.forbidden_calls"),
@@ -113,11 +129,13 @@ def analyze(output, cutoff):
         summary[candidate] = {
             "runs": len(mine), "not_completed": sum(r["status"] != "completed" for r in mine),
             "detection": wilson(len(caught), len(vuln)),
+            "detection_strict": wilson(sum(bool(r["detected_strict"]) for r in vuln), len(vuln)),
             "detection_post_cutoff": wilson(sum(r["detected"] for r in vuln if r["post_cutoff"]),
                                             sum(1 for r in vuln if r["post_cutoff"])),
             "detection_pre_cutoff": wilson(sum(r["detected"] for r in vuln if not r["post_cutoff"]),
                                            sum(1 for r in vuln if not r["post_cutoff"])),
-            "category_match_when_detected": wilson(sum(bool(r["category_match"]) for r in caught), len(caught)),
+            "category_match_when_detected": wilson(sum(bool(r["category_match"]) for r in vuln if r["detected_strict"]),
+                                                   sum(bool(r["detected_strict"]) for r in vuln)),
             "reflag_after_fix": wilson(sum(r["reflagged"] for r in patched), len(patched)),
             # The joint view: outcome from Agent Eval Flow x path from the trace.
             "caught_without_reading_fixed_region": wilson(sum(not r["fixed_region_read"] for r in known_read), len(known_read)),

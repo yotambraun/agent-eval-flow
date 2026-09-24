@@ -16,12 +16,22 @@
     "runtime": "Claude Code 2.1.280",
     "detection_window_lines": 10,
     "cutoff_boundary": "2026-06-30",
-    "intervals": "95% Wilson score intervals"
+    "intervals": "95% Wilson score intervals",
+    "detection": "adjudicated (primary); detection_strict = automatic \u00b110-line rule; see adjudication.json"
   },
   "per_model": {
     "opus-5.5": {
       "runs": 90,
       "detection": {
+        "k": 27,
+        "n": 45,
+        "rate": 0.6,
+        "ci95": [
+          0.4545159420914473,
+          0.7297532055204246
+        ]
+      },
+      "detection_strict": {
         "k": 23,
         "n": 45,
         "rate": 0.5111111111111111,
@@ -40,12 +50,12 @@
         ]
       },
       "detection_fix_pre_cutoff": {
-        "k": 17,
+        "k": 21,
         "n": 35,
-        "rate": 0.4857142857142857,
+        "rate": 0.6,
         "ci95": [
-          0.32993980391252736,
-          0.6443146037328837
+          0.43572419581519467,
+          0.7444949506669274
         ]
       },
       "category_match_when_detected": {
@@ -68,20 +78,20 @@
       },
       "caught_without_reading_fixed_region": {
         "k": 0,
-        "n": 23,
+        "n": 27,
         "rate": 0.0,
         "ci95": [
-          0.0,
-          0.14312112541726274
+          6.938893903907228e-18,
+          0.12455903714463581
         ]
       },
       "missed_despite_reading_fixed_region": {
-        "k": 22,
+        "k": 18,
         "n": 45,
-        "rate": 0.4888888888888889,
+        "rate": 0.4,
         "ci95": [
-          0.3495678935302451,
-          0.6299577567351026
+          0.27024679447957545,
+          0.5454840579085527
         ]
       },
       "runs_with_ungrounded_findings": {
@@ -142,6 +152,15 @@
     "sonnet-5": {
       "runs": 96,
       "detection": {
+        "k": 26,
+        "n": 48,
+        "rate": 0.5416666666666666,
+        "ci95": [
+          0.4029083309494732,
+          0.6742497814544648
+        ]
+      },
+      "detection_strict": {
         "k": 22,
         "n": 48,
         "rate": 0.4583333333333333,
@@ -160,12 +179,12 @@
         ]
       },
       "detection_fix_pre_cutoff": {
-        "k": 15,
+        "k": 19,
         "n": 36,
-        "rate": 0.4166666666666667,
+        "rate": 0.5277777777777778,
         "ci95": [
-          0.2714033350508729,
-          0.5780003033572231
+          0.3700567162693947,
+          0.6801420709279067
         ]
       },
       "category_match_when_detected": {
@@ -188,20 +207,20 @@
       },
       "caught_without_reading_fixed_region": {
         "k": 0,
-        "n": 22,
+        "n": 26,
         "rate": 0.0,
         "ci95": [
-          1.3877787807814457e-17,
-          0.14865952572596125
+          0.0,
+          0.12873304380462175
         ]
       },
       "missed_despite_reading_fixed_region": {
-        "k": 25,
+        "k": 21,
         "n": 47,
-        "rate": 0.5319148936170213,
+        "rate": 0.44680851063829785,
         "ci95": [
-          0.39232141926770786,
-          0.6666853783153737
+          0.31410747474911305,
+          0.5875478626124176
         ]
       },
       "runs_with_ungrounded_findings": {
@@ -263,30 +282,28 @@
   "joint": {
     "advisories": 16,
     "caught_by_majority": {
-      "opus-5.5": 7,
-      "sonnet-5": 7
+      "opus-5.5": 9,
+      "sonnet-5": 8
     },
-    "caught_at_least_once_by_any_model": 11,
+    "caught_at_least_once_by_any_model": 12,
     "never_caught": [
       "GHSA-4fh7-7jx4-8f6c",
       "GHSA-4x4j-2g7c-83w6",
-      "GHSA-6wvf-77m9-58rm",
       "GHSA-74h3-cxq7-vc5q",
       "GHSA-wpmr-8h3q-fwj7"
     ],
     "inconsistent_across_repetitions": {
       "opus-5.5": [
-        "GHSA-frmv-pr5f-9mcr",
         "GHSA-xrqw-3rrv-vx5w"
       ],
       "sonnet-5": [
         "GHSA-5gwj-m78q-7pq3",
-        "GHSA-gqvg-gmmx-x4hm",
-        "GHSA-v3mh-27qj-w836"
+        "GHSA-gqvg-gmmx-x4hm"
       ]
     },
     "models_disagree_by_majority": [
       "GHSA-4hhp-h66f-j5j7",
+      "GHSA-frmv-pr5f-9mcr",
       "GHSA-gqvg-gmmx-x4hm"
     ],
     "by_category": {
@@ -401,43 +418,43 @@
           ]
         },
         "sonnet-5": {
-          "k": 5,
+          "k": 6,
           "n": 9,
-          "rate": 0.5555555555555556,
+          "rate": 0.6666666666666666,
           "ci95": [
-            0.2666473457440297,
-            0.811224570528086
+            0.35419734749908977,
+            0.879418401317257
           ]
         }
       },
       "template_injection": {
         "opus-5.5": {
-          "k": 0,
+          "k": 3,
           "n": 3,
-          "rate": 0.0,
+          "rate": 1.0,
           "ci95": [
-            0.0,
-            0.5615060804490177
+            0.43849391955098227,
+            1.0
           ]
         },
         "sonnet-5": {
-          "k": 0,
+          "k": 3,
           "n": 3,
-          "rate": 0.0,
+          "rate": 1.0,
           "ci95": [
-            0.0,
-            0.5615060804490177
+            0.43849391955098227,
+            1.0
           ]
         }
       },
       "sql_injection": {
         "opus-5.5": {
-          "k": 1,
+          "k": 2,
           "n": 2,
-          "rate": 0.5,
+          "rate": 1.0,
           "ci95": [
-            0.09452865480086614,
-            0.9054713451991339
+            0.34237195288961925,
+            1.0
           ]
         },
         "sonnet-5": {
@@ -585,21 +602,21 @@
     },
     "GHSA-6wvf-77m9-58rm": {
       "opus-5.5": [
-        false,
-        false,
-        false
+        true,
+        true,
+        true
       ],
       "sonnet-5": [
-        false,
-        false,
-        false
+        true,
+        true,
+        true
       ]
     },
     "GHSA-v3mh-27qj-w836": {
       "sonnet-5": [
         true,
         true,
-        false
+        true
       ],
       "opus-5.5": [
         true,
@@ -633,7 +650,7 @@
     },
     "GHSA-frmv-pr5f-9mcr": {
       "opus-5.5": [
-        false,
+        true,
         true
       ],
       "sonnet-5": [

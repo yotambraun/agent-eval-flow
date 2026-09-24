@@ -1,0 +1,47 @@
+{
+  "protocol": "Every vulnerable-variant run that the strict rule scored as a miss was screened for (a) a finding of the advisory's category that no patched-variant run of the same model reports at the same file, and (b) any finding in a ground-truth file under another category. Each candidate was read by hand against the advisory and the upstream fix. Accepted findings describe the advisory's own flaw at a location other than the changed lines (typically the sink or call site). Decisions were made before recomputing any rate.",
+  "reviewed": "2026-09-24",
+  "accepted": [
+    {
+      "advisory": "GHSA-6wvf-77m9-58rm",
+      "file": "litellm/proxy/prompts/prompt_endpoints.py",
+      "line": 1258,
+      "category": "template_injection",
+      "runs": "6 of 6 vulnerable runs (both models)",
+      "rationale": "Describes /prompts/test rendering caller-controlled dotprompt_content with prompt_manager.jinja_env, a plain (unsandboxed) jinja2 Environment, which is exactly the flaw the fix removes by switching that Environment to ImmutableSandboxedEnvironment. The finding cites the render call site rather than the Environment construction, and is absent from every patched-variant run."
+    },
+    {
+      "advisory": "GHSA-frmv-pr5f-9mcr",
+      "file": "django/db/models/sql/where.py",
+      "line": 177,
+      "category": "sql_injection",
+      "runs": "1 Opus run",
+      "rationale": "States that Q.__init__ (query_utils.py:52) accepts the _connector keyword without validating it against AND/OR/XOR and that it reaches SQL, which is the advisory's flaw; it cites the SQL construction site in where.py."
+    },
+    {
+      "advisory": "GHSA-v3mh-27qj-w836",
+      "file": "providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_sftp.py",
+      "line": 207,
+      "category": "path_traversal",
+      "runs": "1 Sonnet run",
+      "rationale": "Describes _resolve_destination_path() (lines 173-179) building the SFTP destination with os.path.join from raw GCS object names, which is the fixed flaw; the cited line is the write, just outside the 10-line window."
+    }
+  ],
+  "rejected": [
+    {
+      "advisory": "GHSA-4fh7-7jx4-8f6c",
+      "file": "airflow-core/src/airflow/api_fastapi/core_api/routes/public/import_error.py",
+      "reason": "A different real flaw (import-error redaction fail-open, later fixed upstream in b12df05), not the dag_sources authorization bypass."
+    },
+    {
+      "advisory": "GHSA-74h3-cxq7-vc5q",
+      "file": "backend/open_webui/socket/main.py",
+      "reason": "Concerns the events:chat last_read_at handler, not the handler the advisory fixes."
+    },
+    {
+      "advisory": "GHSA-xrqw-3rrv-vx5w",
+      "file": "src/transformers/processing_utils.py",
+      "reason": "Two deserialization findings about other code paths in the same file; not the path traversal the fix addresses."
+    }
+  ]
+}
